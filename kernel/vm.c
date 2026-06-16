@@ -301,7 +301,7 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
   uint flags;
   char *mem;
 
-  for(i = 0; i < sz; i += PGSIZE){
+  for(i = PGSIZE; i < sz; i += PGSIZE){   // start at PGSIZE: page 0 is intentionally unmapped
     if((pte = walk(old, i, 0)) == 0)
       continue;   // page table entry hasn't been allocated
     if((*pte & PTE_V) == 0)
@@ -455,6 +455,8 @@ vmfault(pagetable_t pagetable, uint64 va, int read)
   uint64 mem;
   struct proc *p = myproc();
 
+  if (va < PGSIZE)   // null-pointer guard: never map the first page [0, PGSIZE)
+    return 0;
   if (va >= p->sz)
     return 0;
   va = PGROUNDDOWN(va);

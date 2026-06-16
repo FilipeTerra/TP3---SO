@@ -68,6 +68,16 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
+  } else if((r_scause() == 13 || r_scause() == 15 || r_scause() == 12) &&
+            r_stval() < PGSIZE) {
+    // null-pointer dereference: load/store/instruction fault inside the
+    // first page [0x0, PGSIZE), which is intentionally left unmapped.
+    // Must come BEFORE the vmfault() branch, otherwise lazy allocation
+    // would map page 0 and defeat the protection.
+    printf("usertrap(): null pointer dereference pid=%d\n", p->pid);
+    printf("            scause=0x%lx sepc=0x%lx stval=0x%lx\n",
+           r_scause(), r_sepc(), r_stval());
+    setkilled(p);
   } else if((r_scause() == 15 || r_scause() == 13) &&
             vmfault(p->pagetable, r_stval(), (r_scause() == 13)? 1 : 0) != 0) {
     // page fault on lazily-allocated page
